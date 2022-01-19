@@ -41,7 +41,7 @@ function installNodejs()
 
     curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash 
     source ~/.profile   
-    nvm install node  &&  nvm install $nodejsVersion  &&  nvm use $nodejsVersion
+    nvm install $nodejsVersion  &&  nvm use $nodejsVersion
 
     echo -e "\n" 
     echo -e "${bold_Green}* Nodejs installed successfully${NC}"
