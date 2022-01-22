@@ -50,18 +50,16 @@ function installNodejs()
     echo "-----------------------------------------------"
 }
 
-installNodejs
-
 
 ##########################################################
 #                    GO Installation
 ##########################################################
 
-function installGo()
+function installGo() 
 {
     echo
     echo "==============================================="
-    echo -e "${bold_Blue}           Installing NVM and Nodejs${NC}"
+    echo -e "${bold_Blue}           Installing GO Lang${NC}"
     echo "==============================================="
     echo
 
@@ -86,7 +84,8 @@ function installGo()
         sudo tar -C /usr/local -xvzf $go_zip_file
         goExports   # 'export's for 'go'
         
-        checkGoInstalled    # check if 'go' command works
+        checkInstallation "go"   # check if 'go' command works
+        if [ $? == "200"]; then isGoInstalled=true; fi
 
         # if trys for installing 'go' failed
         if [ "$isGoInstalled" == "false" ]
@@ -98,7 +97,8 @@ function installGo()
     # if 'go' directory is avaialble in /usr/local/
     else
         goExports           # 'export's for 'go'
-        checkGoInstalled    # check if 'go' command works
+        checkInstallation "go"   # check if 'go' command works
+        if [ $? == "200"]; then isGoInstalled=true; fi
 
         # if trys for installing 'go' failed
         if [ "$isGoInstalled" == "false" ]
@@ -115,19 +115,6 @@ function installGo()
     echo "-----------------------------------------------"
 }
 
-installGo
-
-# check if 'GO' is installed by 'go version' command
-function checkGoInstalled()
-{
-    isInstalled=$(echo $(go version) | grep "version")
-
-    # check if 'GO' is previously installed
-    if [ "$isInstalled" != "" ]
-    then
-        isGoInstalled=true
-    fi
-}
 
 # some exports for 'go' to work
 function goExports() 
@@ -145,8 +132,79 @@ function goExports()
 
 
 ##########################################################
+#                   Docker Installation
+##########################################################
+
+function checkDocker()
+{
+    isDockerInstalled=false
+
+    checkInstallation "docker"   # check if 'docker' command works
+    if [ $? == "200"]; then isDockerInstalled=true; fi
+
+    #  install Docker Engine, if NOT installed
+    if [ $isDockerInstalled == "false"]; then installDocker
+    # if Docker is previously installed
+    else
+        dockerVersion=$(echo $(docker -v))
+        currentDockerV=${dockerVersion:15:2}
+
+        # compare installed Docker version with min-required version
+        if [ $currentDockerV -ge $minRequiredDockerV ]
+        then
+            echo -e "\n" 
+            echo -e "${bold_Green}* Pre-Installed Docker Engine is OK - v18 or greater is OK${NC}"
+            docker -v
+            echo 
+            echo "-----------------------------------------------"
+        else
+            # remove docker (containers and volumes are NOT affected), and Install it again
+            sudo apt-get purge -y docker-ce docker-ce-cli containerd.io
+            installDocker
+        fi
+    fi
+
+}
+
+
+function installDocker() 
+{
+    sudo apt-get install ca-certificates gnupg lsb-release
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    sudo apt-get install docker-ce docker-ce-cli containerd.io
+    
+    systemctl enable docker
+    systemctl start docker
+    sudo chmod 666 /var/run/docker.sock
+
+    # exit installation if could NOT install Docker
+    checkInstallation "docker"   # check if 'docker' command works
+    if [ $? == "404"]
+    then 
+        echo "${RED}Could NOT install Docker Engine, Try it Yourself!${NC}"
+        exit
+    fi
+}
+
+
+##########################################################
 #                       General Tools
 ##########################################################
+
+# check if 'PACKAGE' is installed by 'PACKAGE version' command
+function checkInstallation()
+{
+    isInstalled=$(echo $($1 version) | grep "version")
+
+    # check if 'PACKAGE' is previously installed
+    if [ "$isInstalled" != "" ]
+    then
+        return "200"    # Installed
+    else
+        return "404"    # Not Installed
+    fi
+}
+
 
 # log the version of installed packages
 function logInstalledPacksVersions() 
@@ -161,6 +219,17 @@ function logInstalledPacksVersions()
 
     echo -e "${bold_Blue}- Git:${NC}"
     echo -e "${Green}    $(git version)${NC}"
+
+    echo -e "${bold_Blue}- Docker:${NC}"
+    echo -e "${Green}    $(docker -v)${NC}"
 }
 
+
+##########################################################
+#                      Run Functions
+##########################################################
+
+installNodejs
+installGo
+checkDocker
 logInstalledPacksVersions
