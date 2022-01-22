@@ -17,12 +17,20 @@ echo -e "${bold_Blue}           Installing required tools${NC}"
 echo "==============================================="
 echo
 
-apt-get update && apt-get upgrade
-apt-get install -y build-essential git-all make curl wget zip unzip g++ libtool libltdl-dev jq
+sudo apt-get update
+sudo apt-get install -y build-essential git-all make curl wget zip unzip g++ libtool libltdl-dev jq
 
-echo -e "\n" 
+# check if any package of the above failed to be installed
+if [ $? != 0 ]; then
+    echo
+    echo -e "${bold_Red}* Failed to install required tools.${NC}"
+    exit
+fi
+
+
 echo -e "${bold_Green}* Required tools installed successfully${NC}"
 echo "build-essential, git, make, curl, wget, zip, unzip, g++, libtool, libltdl-dev, jq"
+echo
 echo "-----------------------------------------------"
 
     
@@ -183,6 +191,43 @@ function installDocker()
     then 
         echo "${RED}Could NOT install Docker Engine, Try it Yourself!${NC}"
         exit
+    else
+        echo -e "\n" 
+        echo -e "${bold_Green}* Docker Engine installed successfully.${NC}"
+        docker -v
+        echo 
+        echo "-----------------------------------------------"
+    fi
+}
+
+
+##########################################################
+#              Docker-Compose Installation
+##########################################################
+
+function installDockerCompose() 
+{
+    # uninstall docker-compose
+    sudo rm /usr/local/bin/docker-compose
+
+    # install docker-compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" \
+    -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+    # exit installation if could NOT install Docker-Compose
+    checkInstallation "docker-compose"   # check if 'docker' command works
+    if [ $? == "404"]
+    then 
+        echo "${RED}Could NOT install Docker-Compose, Try it Yourself!${NC}"
+        exit
+    else
+        echo -e "\n" 
+        echo -e "${bold_Green}* Docker-Compose installed successfully.${NC}"
+        docker-compose -v
+        echo 
+        echo "-----------------------------------------------"
     fi
 }
 
@@ -211,17 +256,22 @@ function logInstalledPacksVersions()
 {
     echo -e "\n"
 
-    echo -e "${bold_Blue}- Nodejs:${NC}"
-    echo -e "${Green}    $(node --version)${NC}"
-
     echo -e "${bold_Blue}- GO:${NC}"
     echo -e "${Green}    $(go version)${NC}"
 
     echo -e "${bold_Blue}- Git:${NC}"
     echo -e "${Green}    $(git version)${NC}"
 
+    echo -e "${bold_Blue}- Nodejs:${NC}"
+    echo -e "${Green}    $(node --version)${NC}"
+
     echo -e "${bold_Blue}- Docker:${NC}"
     echo -e "${Green}    $(docker -v)${NC}"
+    
+    echo -e "${bold_Blue}- Docker-Compose:${NC}"
+    echo -e "${Green}    $(docker-compose -v)${NC}"
+
+    echo
 }
 
 
@@ -229,7 +279,8 @@ function logInstalledPacksVersions()
 #                      Run Functions
 ##########################################################
 
-installNodejs
-installGo
-checkDocker
+# installNodejs
+# installGo
+# checkDocker
+# installDockerCompose
 logInstalledPacksVersions
