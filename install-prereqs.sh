@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -i
 
 # export environment variables from .env file
 export $(xargs < .env)
@@ -8,32 +8,61 @@ export $(xargs < .env)
 
 
 ##########################################################
+#                       Validate User
+##########################################################
+
+# current user password
+userPwd=$1
+
+function checkUserPwd()
+{
+    if [ "$userPwd" == "" ]; then
+        echo -e "${bold_Red}* User password MUST be provided as first argument.${NC}"
+        echo -e "${bold_Red}Exiting...${NC}"
+        exit
+    fi
+
+    # check if user password is correct
+    echo $userPwd | sudo -S ls
+    if [ $? != 0 ]; then
+        echo -e "${bold_Red}* User password is INCORRECT.${NC}"
+        echo -e "${bold_Red}Exiting...${NC}"
+        exit
+    fi
+}
+
+
+##########################################################
 #                install required tools
 ##########################################################
 
-echo
-echo "==============================================="
-echo -e "${bold_Blue}           Installing required tools${NC}"
-echo "==============================================="
-echo
-
-sudo apt-get update
-sudo apt-get install -y build-essential git-all make curl wget zip unzip g++ libtool libltdl-dev jq
-
-# check if any package of the above failed to be installed
-if [ $? != 0 ]; then
+function installTools()
+{
     echo
-    echo -e "${bold_Red}* Failed to install required tools.${NC}"
-    exit
-fi
+    echo "==============================================="
+    echo -e "${bold_Blue}           Installing required tools${NC}"
+    echo "==============================================="
+    echo
+
+    # pipes user password for sudo commands
+    echo $userPwd | sudo -S apt-get update
+    sudo apt-get install -y build-essential git-all make curl wget zip unzip g++ libtool libltdl-dev jq
+
+    # check if any package of the above failed to be installed
+    if [ $? != 0 ]; then
+        echo
+        echo -e "${bold_Red}* Failed to install required tools.${NC}"
+        exit
+    fi
 
 
-echo -e "${bold_Green}* Required tools installed successfully${NC}"
-echo "build-essential, git, make, curl, wget, zip, unzip, g++, libtool, libltdl-dev, jq"
-echo
-echo "-----------------------------------------------"
+    echo -e "${bold_Green}* Required tools installed successfully${NC}"
+    echo "build-essential, git, make, curl, wget, zip, unzip, g++, libtool, libltdl-dev, jq"
+    echo
+    echo -e "${bold_Cyan}____________________________________________________________${NC}"
+}
 
-    
+
 ##########################################################
 #                   Nodejs Installation
 ##########################################################
@@ -43,19 +72,29 @@ function installNodejs()
 {
     echo
     echo "==============================================="
-    echo -e "${bold_Blue}Installing NVM and Nodejs${NC}"
+    echo -e "${bold_Blue}           Installing NVM and Nodejs${NC}"
     echo "==============================================="
     echo
 
     curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash 
-    source ~/.profile   
+
+    source ~/.bashrc 
+    
     nvm install $nodejsVersion  &&  nvm use $nodejsVersion
 
-    echo -e "\n" 
-    echo -e "${bold_Green}* Nodejs installed successfully${NC}"
-    node --version
+
+    if [ $? == 0 ]
+    then
+        echo -e 
+        echo -e "${bold_Green}* Nodejs installed successfully${NC}"
+        node --version
+    else
+        echo -e 
+        echo -e "${bold_Red}* Failed to install Nodejs${NC}"
+    fi
+
     echo 
-    echo "-----------------------------------------------"
+    echo -e "${bold_Cyan}____________________________________________________________${NC}"
 }
 
 
@@ -67,16 +106,16 @@ function installGo()
 {
     echo
     echo "==============================================="
-    echo -e "${bold_Blue}           Installing GO Lang${NC}"
+    echo -e "${bold_Blue}               Installing GO Lang${NC}"
     echo "==============================================="
     echo
 
     isGoInstalled=false
 
     # if 'go' directory is NOT avaialble in /usr/local/
-    if [ ! -d "$go_path" ] 
+    if [ ! -d "$go_installation_path" ] 
     then
-        echo -e "${Yellow}go directory NOT found in path:${NC} ${go_path}"
+        echo -e "${Yellow}go directory NOT found in path:${NC} ${go_installation_path}"
         echo "Downloading go1.17.6"
 
         # download go
@@ -85,7 +124,7 @@ function installGo()
         # if download failed
         if [ $? != 0 ]
         then
-            echo -e "${RED}Failed to download go. Check network connection or use a VPN${NC}"
+            echo -e "${RED}* Failed to download go. Check network connection or use a VPN${NC}"
             exit
         fi
 
@@ -93,12 +132,12 @@ function installGo()
         goExports   # 'export's for 'go'
         
         checkInstallation "go"   # check if 'go' command works
-        if [ $? == "200"]; then isGoInstalled=true; fi
+        if [ $? == "200" ]; then isGoInstalled=true; fi
 
         # if trys for installing 'go' failed
         if [ "$isGoInstalled" == "false" ]
         then
-            echo -e "${Red}Failed to install go (go command does NOT work). Try it yourself!${NC}"
+            echo -e "${Red}* Failed to install go (go command does NOT work). Try it yourself!${NC}"
             exit
         fi
     
@@ -106,34 +145,32 @@ function installGo()
     else
         goExports           # 'export's for 'go'
         checkInstallation "go"   # check if 'go' command works
-        if [ $? == "200"]; then isGoInstalled=true; fi
+        if [ $? == "200" ]; then isGoInstalled=true; fi
 
         # if trys for installing 'go' failed
         if [ "$isGoInstalled" == "false" ]
         then
-            echo -e "${Red}Failed to install go (go command does NOT work). Try it yourself!${NC}"
+            echo -e "${Red}* Failed to install go (go command does NOT work). Try it yourself!${NC}"
             exit
         fi
     fi
 
-    echo -e "\n" 
+    echo -e 
     echo -e "${bold_Green}* GO installed successfully${NC}"
     go version
     echo 
-    echo "-----------------------------------------------"
+    echo -e "${bold_Cyan}____________________________________________________________${NC}"
 }
 
 
 # some exports for 'go' to work
 function goExports() 
 {
-    export GOROOT=$export_GOROOT
-    export GOPATH=$export_GOPATH
-    export PATH=$export_PATH
+    export GOPATH="/usr/local/bin"
+    export PATH="$PATH:/usr/local/go/bin"
 
-    echo -e "\n\n\nexport GOROOT=$GOROOT" >> ~/.bashrc
-    echo "export GOPATH=$export_GOPATH" >> ~/.bashrc
-    echo "PATH=$export_PATH" >> ~/.bashrc
+    echo -e "\n\n\nexport GOPATH=/usr/local/bin" >> ~/.bashrc
+    echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
 
     source ~/.bashrc
 }
@@ -145,13 +182,19 @@ function goExports()
 
 function checkDocker()
 {
+    echo
+    echo "==============================================="
+    echo -e "${bold_Blue}           Installing Docker Engine${NC}"
+    echo "==============================================="
+    echo
+    
     isDockerInstalled=false
 
     checkInstallation "docker"   # check if 'docker' command works
-    if [ $? == "200"]; then isDockerInstalled=true; fi
+    if [ $? == "200" ]; then isDockerInstalled=true; fi
 
     #  install Docker Engine, if NOT installed
-    if [ $isDockerInstalled == "false"]; then installDocker
+    if [ $isDockerInstalled == "false" ]; then installDocker
     # if Docker is previously installed
     else
         dockerVersion=$(echo $(docker -v))
@@ -160,14 +203,14 @@ function checkDocker()
         # compare installed Docker version with min-required version
         if [ $currentDockerV -ge $minRequiredDockerV ]
         then
-            echo -e "\n" 
+            echo -e 
             echo -e "${bold_Green}* Pre-Installed Docker Engine is OK - v18 or greater is OK${NC}"
             docker -v
             echo 
-            echo "-----------------------------------------------"
+            echo -e "${bold_Cyan}____________________________________________________________${NC}"
         else
             # remove docker (containers and volumes are NOT affected), and Install it again
-            sudo apt-get purge -y docker-ce docker-ce-cli containerd.io
+            sudo apt-get remove docker docker-engine docker.io containerd runc
             installDocker
         fi
     fi
@@ -177,26 +220,44 @@ function checkDocker()
 
 function installDocker() 
 {
-    sudo apt-get install ca-certificates gnupg lsb-release
+    echo
+    echo -e "${Yellow}* Installing Docker Engine...${NC}"
+
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates gnupg lsb-release
+    sudo rm /usr/share/keyrings/docker-archive-keyring.gpg
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    sudo apt-get install docker-ce docker-ce-cli containerd.io
+
+    echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     
-    systemctl enable docker
-    systemctl start docker
+    sudo apt-get -y install docker-ce docker-ce-cli containerd.io
+    
+    sudo systemctl enable docker
+    sudo systemctl start docker
     sudo chmod 666 /var/run/docker.sock
 
     # exit installation if could NOT install Docker
     checkInstallation "docker"   # check if 'docker' command works
-    if [ $? == "404"]
+    if [ $? == "404" ]
     then 
-        echo "${RED}Could NOT install Docker Engine, Try it Yourself!${NC}"
+        echo "${RED}* Could NOT install Docker Engine, Try it Yourself!${NC}"
         exit
     else
-        echo -e "\n" 
-        echo -e "${bold_Green}* Docker Engine installed successfully.${NC}"
-        docker -v
+
+        if [ $? == 0 ]
+        then
+            echo -e 
+            echo -e "${bold_Green}* Docker Engine installed successfully.${NC}"
+            docker -v
+        else
+            echo -e 
+            echo -e "${bold_Red}* Failed to install Docker Engine${NC}"
+        fi
+        
         echo 
-        echo "-----------------------------------------------"
+        echo -e "${bold_Cyan}____________________________________________________________${NC}"
     fi
 }
 
@@ -207,8 +268,15 @@ function installDocker()
 
 function installDockerCompose() 
 {
+    echo
+    echo "==============================================="
+    echo -e "${bold_Blue}           Installing Docker-Compose${NC}"
+    echo "==============================================="
+    echo
+
     # uninstall docker-compose
     sudo rm /usr/local/bin/docker-compose
+    sudo rm /usr/local/bin/docker-compose /usr/bin/docker-compose
 
     # install docker-compose
     sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" \
@@ -218,16 +286,17 @@ function installDockerCompose()
 
     # exit installation if could NOT install Docker-Compose
     checkInstallation "docker-compose"   # check if 'docker' command works
-    if [ $? == "404"]
+    if [ $? == "404" ]
     then 
-        echo "${RED}Could NOT install Docker-Compose, Try it Yourself!${NC}"
+        echo "${RED}* Could NOT install Docker-Compose, Try it Yourself!${NC}"
         exit
     else
-        echo -e "\n" 
+        echo -e 
         echo -e "${bold_Green}* Docker-Compose installed successfully.${NC}"
         docker-compose -v
+
         echo 
-        echo "-----------------------------------------------"
+        echo -e "${bold_Cyan}____________________________________________________________${NC}"
     fi
 }
 
@@ -239,14 +308,14 @@ function installDockerCompose()
 # check if 'PACKAGE' is installed by 'PACKAGE version' command
 function checkInstallation()
 {
-    isInstalled=$(echo $($1 version) | grep "version")
+    $1 version
 
     # check if 'PACKAGE' is previously installed
-    if [ "$isInstalled" != "" ]
+    if [ $? != 0 ]
     then
-        return "200"    # Installed
-    else
         return "404"    # Not Installed
+    else
+        return "200"    # Installed
     fi
 }
 
@@ -271,6 +340,12 @@ function logInstalledPacksVersions()
     echo -e "${bold_Blue}- Docker-Compose:${NC}"
     echo -e "${Green}    $(docker-compose -v)${NC}"
 
+    echo 
+    echo -e "${bold_Cyan}____________________________________________________________${NC}"
+
+    echo
+    echo -e "${Yellow}* If you want to use installed tools, close the terminal and open it again.${NC}"
+    echo -e "${Yellow}Or run command ${bold_Purple}'source ~/.bashrc'${NC}"
     echo
 }
 
@@ -279,8 +354,10 @@ function logInstalledPacksVersions()
 #                      Run Functions
 ##########################################################
 
-# installNodejs
-# installGo
-# checkDocker
-# installDockerCompose
+checkUserPwd
+installTools
+installNodejs
+installGo
+checkDocker
+installDockerCompose
 logInstalledPacksVersions
