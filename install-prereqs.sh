@@ -355,5 +355,4 @@ installNodejs
 installGo
 checkDocker
 installDockerCompose
-
 logInstalledPacksVersions
