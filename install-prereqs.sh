@@ -243,20 +243,13 @@ function installDocker()
     checkInstallation "docker"   # check if 'docker' command works
     if [ $? == "404" ]
     then 
-        echo "${RED}* Could NOT install Docker Engine, Try it Yourself!${NC}"
+        echo "${RED}* Failed to install Docker Engine, Try it Yourself!${NC}"
         exit
-    else
-
-        if [ $? == 0 ]
-        then
-            echo -e 
-            echo -e "${bold_Green}* Docker Engine installed successfully.${NC}"
-            docker -v
-        else
-            echo -e 
-            echo -e "${bold_Red}* Failed to install Docker Engine${NC}"
-        fi
-        
+    elif [ $? == "200" ]
+    then
+        echo -e 
+        echo -e "${bold_Green}* Docker Engine installed successfully.${NC}"
+        docker -v
         echo 
         echo -e "${bold_Cyan}____________________________________________________________${NC}"
     fi
@@ -361,4 +354,5 @@ installNodejs
 installGo
 checkDocker
 installDockerCompose
+
 logInstalledPacksVersions
