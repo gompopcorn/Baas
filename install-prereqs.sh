@@ -15,7 +15,7 @@ function checkUserPwd()
 
     # if NO password is provided
     if [ "$userPwd" == "" ]; then
-        echo -e "${bold_Red}* User password MUST be provided as first argument.${NC}"
+        echo -e "${bold_Red}* User password MUST be provided in tmp.txt file.${NC}"
         echo -e "${bold_Red}Exiting...${NC}"
         exit
     fi
