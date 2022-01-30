@@ -1,0 +1,26 @@
+{
+  "name": "baas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gompopcorn/Baas.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gompopcorn/Baas/issues"
+  },
+  "homepage": "https://github.com/gompopcorn/Baas#readme",
+  "dependencies": {
+    "colors": "^1.4.0",
+    "dotenv": "^14.3.2",
+    "express": "^4.17.2",
+    "node-scp": "^0.0.16"
+  }
+}
