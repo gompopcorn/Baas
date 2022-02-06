@@ -1,11 +1,14 @@
 // node_modules
 const express = require('express');
 const app = express();
+const path = require('path');
 const colors = require('colors');
-const { Client } = require('node-scp');
+const sshClient = require('ssh2').Client;
 require('dotenv').config();
 
 const PORT = process.env.PORT;
+const coreServerAddress = process.env.coreServerAddress;
+const tmuxSessionName = process.env.tmuxSessionName;
 
 
 // app.options('*', cors());
@@ -22,21 +25,75 @@ app.post('/installPreReqs', async (req, res, err) =>
     let serverIP = req.body.serverIP;
     let username = req.body.username;
     let password = req.body.password;
+    let baasDir = process.env.baasDir;
 
-    // if (!serverIP || !username || !password) {
-    //     return res.send("'username', 'password' and 'serverIP' fields are required.");
-    // }
+    if (!serverIP || !username || !password) {
+        return res.send("'username', 'password' and 'serverIP' fields are required.");
+    }
 
-    // try {
-    //     const client = await Client({
-    //         host: serverIP,
-    //         username,
-    //         password
-    //     });
-    // }
-    // catch(err) {
-    //     console.log(err);
-    // }
+
+    // ***********************************************************
+    //     transfer 'install-prereqs' files to the server  AND  
+    //          run pre-reqs installation files with ssh
+    // ***********************************************************
+
+    let isErrReported = false;
+
+    try 
+    {
+        const conn = new sshClient();
+        conn.connect({ host: serverIP, username, password })
+        .on('ready', () => 
+        {
+            console.log(`-------- SSH connected to the server: [${serverIP}] --------\n`);
+    
+            conn.shell((err, stream) => 
+            {
+                if (err) throw err;
+    
+                stream.on('close', () => {
+                    console.log(`\n-------- SSH DISCONNECTED from the server: [${serverIP}] --------\n`);
+                    conn.end();
+                })
+                .on('data', (data) => {
+                    console.log(colors.blue('OUTPUT: ') + data);
+                });
+    
+
+                // download install-prereqs files, give permissions, create pwd.txt file and put password inside, and install-prereqs
+                stream.end(`sudo apt install unzip wget \n\
+                    sudo mkdir ${baasDir} \n\ sudo chmod 777 -R ${baasDir} \n cd ${baasDir} \n\
+                    wget ${coreServerAddress}/install-prereqs.zip -O install-prereqs.zip \n\
+                    unzip -o install-prereqs.zip \n\ cd install-prereqs \n\
+                    sudo chmod +x runWithTmux.sh \n sudo chmod +x install-prereqs.sh \n\
+                    echo ${password} > pwd.txt \n\
+                    ./runWithTmux.sh './install-prereqs.sh' '${tmuxSessionName}' \n\
+                    exit\n`
+                );
+
+
+                return res.send(`Pre-requisites are being installed on your server with IP: [${serverIP}]. You can see logs by command 'tmux attach -t ${tmuxSessionName}'`)
+            });
+    
+        })
+        .on('error', err => 
+        {
+            console.log(colors.bgRed.black(`Error in ssh connection with the server: [${serverIP}]`));
+            console.log(colors.red(err) + "\n");
+            
+            // check if error is reported before, to prevent sending response more than onece
+            if (!isErrReported) {
+                isErrReported = true;
+                return res.status(500).send(`Error in ssh connection with the server: [${serverIP}]`);
+            }
+        });
+    }
+
+    catch(err) {
+        console.log(colors.bgRed.black("Error in ssh connection"));
+        console.log(colors.red(err) + "\n");
+        return res.status(500).send("Error in ssh connection");
+    }
 });
 
 
@@ -47,18 +104,15 @@ app.post('/notifications', async (req, res, err) =>
     let status = req.body.status;
     let networkServers;
 
-    // return console.log(installedPackage);
+    if (!serverIPs || !installedPackage || !status) {
+        return res.send("'serverIPs', 'installedPackage' and 'status' fields are required.");
+    }
 
     try {
         networkServers = JSON.parse(process.env.servers);
     } catch(err) {
         console.log(colors.bgRed.black("Error in parsing JSON in: ' JSON.parse(process.env.servers) '"));
-        console.log(colors.red(err));
-        console.log("\n");
-    }
-
-    if (!serverIPs || !installedPackage || !status) {
-        return res.send("'serverIPs', 'installedPackage' and 'status' fields are required.");
+        console.log(colors.red(err) + "\n");
     }
 
     // find the ip of the server from networkServers
@@ -74,11 +128,20 @@ app.post('/notifications', async (req, res, err) =>
         return res.status(404).send(`There is no server with any of IPs: ${serverIPs}`)
     }
 
-     // send notification to the front-end with webDocket
-    // e.g: Nodejs Installed
+    else {
+        // send notification to the front-end with webDocket
+       // e.g: Nodejs Installed
 
-    
+        // console.log(serverIP);
+        console.log(req.body);
+        return res.send();
+    }
 });
+
+
+app.get('/install-prereqs.zip', (req, res) => {
+    return res.sendFile(path.join(__dirname, 'install-prereqs.zip'));
+})
 
 
 
@@ -87,37 +150,3 @@ app.listen(PORT, console.log(
     `${colors.bgWhite.black(`<--- Server started listening on Port ${PORT} --->`)}` +
     "\n\n**************************************************\n")
 );
-
-
-
-async function test() 
-{
-    try 
-    {
-        const client = await Client({
-            host: '194.5.193.217',
-            username: 'ubuntu',
-            password: 's@popcorn2001'
-        });
-
-        // await client.uploadFile('./runWithTmux.sh', '/home/ubuntu/Baas/runWithTmux2.sh');
-        // await client.uploadDir('./test', '/home/ubuntu/Baas/test')
-
-        // await client.downloadFile('/home/ubuntu/Baas/runWithTmux2.sh', './runWithTmux2.sh')
-
-        // await client.mkdir('/home/ubuntu/Baas/hello');
-
-        // const result = await client.exists('/home/ubuntu/Baas/README.md');
-        // const result = await client.stat('/home/ubuntu/Baas');
-        // const result = await client.list('/home/ubuntu/Baas');
-        console.log(result);
-        
-        client.close() // remember to close connection after you finish
-    } 
-    
-    catch (e) {
-        console.log(e)
-    }
-}
-
-// test()

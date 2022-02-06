@@ -4,6 +4,8 @@
 export $(xargs < .env)
 
 serverIP=$(hostname -I)
+logFileName="statusLogs.txt"
+> $logFileName  # clear contents of the statusLogs file
 
 ##########################################################
 #                       Validate User
@@ -48,34 +50,39 @@ function installTools()
 
     # pipes user password for sudo commands
     echo $userPwd | sudo -S apt-get update
-    sudo apt-get install -y build-essential git-all make curl wget zip unzip g++ libtool libltdl-dev jq
+    sudo apt-get install -y wget build-essential git-all make curl zip unzip g++ libtool libltdl-dev jq
 
     # check if any package of the above failed to be installed
     if [ $? != 0 ]; then
         echo
-        echo -e "${bold_Red}* Failed to install required tools.${NC}"
-        exit
+        echo -e "${bold_Red}* Failed to install required tools${NC}"
 
+        # log the installation status to a file
+        echo "tools=false" >> $logFileName
 
-        # send a notification to core-server that insralling 'tools' failed
-        wget --post-data "serverIPs=$serverIP&installedPackage=tools&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
+        # send a notification to core-server that installing 'tools' failed
+        wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=tools&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
 
         # check if notification is received at core-server
         if [ $? != 0 ]; then
             echo
             echo -e "${bold_Red}* Failed to send fail notification to core-server - # installing tools #${NC}"
         fi
+
+        exit
     fi
 
 
-    # send a notification to core-server that insralling 'tools' is done
-    wget --post-data "serverIPs=$serverIP&installedPackage=tools&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
+    # log the installation status to a file
+    echo "tools=true" >> $logFileName
+
+    # send a notification to core-server that installing 'tools' is done
+    wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=tools&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
 
     # check if notification is received at core-server
     if [ $? != 0 ]; then
         echo
         echo -e "${bold_Red}* Failed to send success notification to core-server - # installing tools #${NC}"
-        exit
     fi
 
 
@@ -115,26 +122,32 @@ function installNodejs()
         echo -e 
         echo -e "${bold_Red}* Failed to install Nodejs${NC}"
 
+        # log the installation status to a file
+        echo "nodejs=false" >> $logFileName
 
-        # send a notification to core-server that insralling 'nodejs' failed
-        wget --post-data "serverIPs=$serverIP&installedPackage=nodejs&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
+        # send a notification to core-server that installing 'nodejs' failed
+        wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=nodejs&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
 
         # check if notification is received at core-server
         if [ $? != 0 ]; then
             echo
             echo -e "${bold_Red}* Failed to send fail notification to core-server - # installing Nodejs #${NC}"
         fi
+
+        exit
     fi
 
 
-    # send a notification to core-server that insralling 'nodejs' is done
-    wget --post-data "serverIPs=$serverIP&installedPackage=nodejs&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
+    # log the installation status to a file
+    echo "nodejs=true" >> $logFileName
+
+    # send a notification to core-server that installing 'nodejs' is done
+    wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=nodejs&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
 
     # check if notification is received at core-server
     if [ $? != 0 ]; then
         echo
         echo -e "${bold_Red}* Failed to send success notification to core-server - # installing Nodejs #${NC}"
-        exit
     fi
 
 
@@ -171,8 +184,11 @@ function installGo()
         then
             echo -e "${RED}* Failed to download go. Check network connection or use a VPN${NC}"
             
-            # send a notification to core-server that insralling 'GO' failed
-            wget --post-data "serverIPs=$serverIP&installedPackage=go&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
+            # log the installation status to a file
+            echo "go=false" >> $logFileName
+
+            # send a notification to core-server that installing 'GO' failed
+            wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=go&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
 
             # check if notification is received at core-server
             if [ $? != 0 ]; then
@@ -192,10 +208,13 @@ function installGo()
         # if trys for installing 'go' failed
         if [ "$isGoInstalled" == "false" ]
         then
-            echo -e "${Red}* Failed to install go (go command does NOT work). Try it yourself!${NC}"
+            echo -e "${Red}* Failed to install go (go command does NOT work). Try it yourself.${NC}"
 
-            # send a notification to core-server that insralling 'GO' failed
-            wget --post-data "serverIPs=$serverIP&installedPackage=go&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
+            # log the installation status to a file
+            echo "go=false" >> $logFileName
+
+            # send a notification to core-server that installing 'GO' failed
+            wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=go&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
 
             # check if notification is received at core-server
             if [ $? != 0 ]; then
@@ -215,10 +234,13 @@ function installGo()
         # if trys for installing 'go' failed
         if [ "$isGoInstalled" == "false" ]
         then
-            echo -e "${Red}* Failed to install go (go command does NOT work). Try it yourself!${NC}"
+            echo -e "${Red}* Failed to install go (go command does NOT work). Try it yourself.${NC}"
 
-            # send a notification to core-server that insralling 'GO' failed
-            wget --post-data "serverIPs=$serverIP&installedPackage=go&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
+            # log the installation status to a file
+            echo "go=false" >> $logFileName
+
+            # send a notification to core-server that installing 'GO' failed
+            wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=go&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
 
             # check if notification is received at core-server
             if [ $? != 0 ]; then
@@ -231,14 +253,16 @@ function installGo()
     fi
 
 
-    # send a notification to core-server that insralling 'GO' is done
-    wget --post-data "serverIPs=$serverIP&installedPackage=go&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
+    # log the installation status to a file
+    echo "go=true" >> $logFileName
+
+    # send a notification to core-server that installing 'GO' is done
+    wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=go&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
 
     # check if notification is received at core-server
     if [ $? != 0 ]; then
         echo
         echo -e "${bold_Red}* Failed to send success notification to core-server - # installing GO #${NC}"
-        exit
     fi
 
 
@@ -290,14 +314,16 @@ function checkDocker()
         # compare installed Docker version with min-required version
         if [ $currentDockerV -ge $minRequiredDockerV ]
         then
-            # send a notification to core-server that insralling 'docker' is done
-            wget --post-data "serverIPs=$serverIP&installedPackage=docker&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
+            # log the installation status to a file
+            echo "docker=true" >> $logFileName
+
+            # send a notification to core-server that installing 'docker' is done
+            wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=docker&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
 
             # check if notification is received at core-server
             if [ $? != 0 ]; then
                 echo
                 echo -e "${bold_Red}* Failed to send success notification to core-server - # installing Docker #${NC}"
-                exit
             fi
 
             echo -e 
@@ -340,10 +366,13 @@ function installDocker()
     checkInstallation "docker"   # check if 'docker' command works
     if [ $? == "404" ]
     then 
-        echo "${RED}* Failed to install Docker Engine, Try it Yourself!${NC}"
+        echo "${RED}* Failed to install Docker Engine, Try it Yourself.${NC}"
 
-        # send a notification to core-server that insralling 'docker' failed
-        wget --post-data "serverIPs=$serverIP&installedPackage=docker&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
+        # log the installation status to a file
+        echo "docker=false" >> $logFileName
+
+        # send a notification to core-server that installing 'docker' failed
+        wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=docker&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
 
         # check if notification is received at core-server
         if [ $? != 0 ]; then
@@ -355,14 +384,16 @@ function installDocker()
 
     elif [ $? == "200" ]
     then
-        # send a notification to core-server that insralling 'docker' is done
-        wget --post-data "serverIPs=$serverIP&installedPackage=docker&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
+        # log the installation status to a file
+        echo "docker=true" >> $logFileName
+
+        # send a notification to core-server that installing 'docker' is done
+        wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=docker&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
 
         # check if notification is received at core-server
         if [ $? != 0 ]; then
             echo
             echo -e "${bold_Red}* Failed to send success notification to core-server - # installing Docker #${NC}"
-            exit
         fi
 
 
@@ -401,10 +432,13 @@ function installDockerCompose()
     checkInstallation "docker-compose"   # check if 'docker' command works
     if [ $? == "404" ]
     then 
-        echo "${RED}* Could NOT install Docker-Compose, Try it Yourself!${NC}"
+        echo "${RED}* Could NOT install Docker-Compose, Try it Yourself.${NC}"
 
-        # send a notification to core-server that insralling 'docker-compose' failed
-        wget --post-data "serverIPs=$serverIP&installedPackage=docker-compose&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
+        # log the installation status to a file
+        echo "docker-compose=false" >> $logFileName
+
+        # send a notification to core-server that installing 'docker-compose' failed
+        wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=docker-compose&status=false" -T 5 -t 3 http://$coreServerAddress/notifications
 
         # check if notification is received at core-server
         if [ $? != 0 ]; then
@@ -414,14 +448,16 @@ function installDockerCompose()
 
         exit
     else
-        # send a notification to core-server that insralling 'docker-compose' is done
-        wget --post-data "serverIPs=$serverIP&installedPackage=docker-compose&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
+        # log the installation status to a file
+        echo "docker-compose=true" >> $logFileName
+
+        # send a notification to core-server that installing 'docker-compose' is done
+        wget -O /dev/null --post-data "serverIPs=$serverIP&installedPackage=docker-compose&status=true" -T 5 -t 3 http://$coreServerAddress/notifications
 
         # check if notification is received at core-server
         if [ $? != 0 ]; then
             echo
             echo -e "${bold_Red}* Failed to send success notification to core-server - # installing Docker-Compose #${NC}"
-            exit
         fi
 
         

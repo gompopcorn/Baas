@@ -35,9 +35,9 @@ function run()
 
     tmux new -s $sessionName -d
     tmux send-keys -t $sessionName $runCommand C-m
-    tmux attach -t $sessionName -d    # shows tmux terminal
+    # tmux attach -t $sessionName   # shows tmux terminal
 }
 
 
 checkUserPwd
-run
+run $1 $2
