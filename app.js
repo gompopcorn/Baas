@@ -80,9 +80,14 @@ app.post('/installPreReqs', async (req, res, err) =>
         {
             console.log(colors.bgRed.black(`Error in ssh connection with the server: [${serverIP}]`));
             console.log(colors.red(err) + "\n");
+
+            // if err in authentication
+            if (String(err).search("All configured authentication methods failed") !== -1) {
+                return res.status(400).send(`Authentication info is wrong`);
+            }
             
             // check if error is reported before, to prevent sending response more than onece
-            if (!isErrReported) {
+            else if (!isErrReported) {
                 isErrReported = true;
                 return res.status(500).send(`Error in ssh connection with the server: [${serverIP}]`);
             }
