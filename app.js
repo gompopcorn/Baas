@@ -8,6 +8,9 @@ const zipper = require("zip-local");
 const sshClient = require('ssh2').Client;
 require('dotenv').config();
 
+// tools
+const tools = require('./tools/general-tools.js')
+
 const PORT = process.env.PORT;
 const coreServerAddress = process.env.coreServerAddress;
 const tmuxSessionName = process.env.tmuxSessionName;
@@ -19,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));  // parse application/x-www-for
 
 
 
+// install pre-requisites on a server
 app.post('/installPreReqs', async (req, res, err) =>
 {
     let serverIP = req.body.serverIP;
@@ -105,6 +109,24 @@ app.post('/installPreReqs', async (req, res, err) =>
 });
 
 
+
+// swarm servers
+app.post('/swarm', async (req, res) =>
+{
+    // * Note: each of the objects bellow MUST include: serverIP, username and password
+    let leader = req.body.leader;         // swarm leader - an object
+    let managers = req.body.managers;    // swarm managers - array of objects
+    let workers = req.body.workers;     // swarm workers - array of objects
+
+    // input strucrure checking
+    let validateInputs =  tools.inputValidationsForSwarm(leader, managers, workers, res);
+
+    if (validateInputs) return res.send();
+});
+
+
+
+// recieve the status of installed packages
 app.post('/notifications', async (req, res, err) =>
 {
     let serverIP, serverIPs;
