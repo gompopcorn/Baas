@@ -1,8 +1,10 @@
 // node_modules
 const express = require('express');
 const app = express();
+const fs = require('fs');
 const path = require('path');
 const colors = require('colors');
+const zipper = require("zip-local");
 const sshClient = require('ssh2').Client;
 require('dotenv').config();
 
@@ -53,16 +55,19 @@ app.post('/installPreReqs', async (req, res, err) =>
                     conn.end();
                 })
                 .on('data', (data) => {
-                    console.log(colors.blue('OUTPUT: ') + data);
+                    // console.log(colors.blue('OUTPUT: ') + data);
                 });
     
 
                 // download install-prereqs files, give permissions, create pwd.txt file and put password inside, and install-prereqs
+                // * NOTE: the jobs will NOT be done if 'install-prereqs' directory exists in '/home/BaaS' in the target server,
+                // if you want to do the jobs again, remvoe 'install-prereqs' directory from '/home/BaaS'
                 stream.end(`echo ${password} | sudo -S ls && history -c && \
                     sudo apt install -y unzip wget && \
-                    sudo mkdir ${baasDir} && sudo chmod 777 -R ${baasDir} \n cd ${baasDir} \n\
+                    sudo mkdir ${baasDir}; cd ${baasDir} && sudo mkdir install-prereqs && cd install-prereqs && \
+                    sudo chmod 777 -R ${baasDir} && \
                     wget ${coreServerAddress}/install-prereqs.zip -O install-prereqs.zip && \
-                    unzip -o install-prereqs.zip && cd install-prereqs && \
+                    unzip -o install-prereqs.zip && \
                     sudo chmod +x runWithTmux.sh && sudo chmod +x install-prereqs.sh && \
                     echo ${password} > pwd.txt && history -c && \
                     ./runWithTmux.sh './install-prereqs.sh' '${tmuxSessionName}' \n\
@@ -143,9 +148,40 @@ app.post('/notifications', async (req, res, err) =>
 });
 
 
-app.get('/install-prereqs.zip', (req, res) => {
-    return res.sendFile(path.join(__dirname, 'install-prereqs.zip'));
-})
+app.get('/install-prereqs.zip', (req, res) => 
+{
+    // check file/directory existence
+    fs.stat("./install-prereqs.zip", function(err, stat) 
+    {
+        // if file/directory exists
+        if(err === null) {
+            return res.sendFile(path.join(__dirname, 'install-prereqs.zip'));
+        }
+
+        // if file/directory NOT exists
+        else if(err.code === 'ENOENT') 
+        {
+            try {
+                zipper.sync.zip("./install-prereqs").compress().save("install-prereqs.zip");
+                console.log(colors.green("\n* 'install-prereqs' folder zipped successfully.\n"));
+                return res.sendFile(path.join(__dirname, 'install-prereqs.zip'));
+            }
+            catch(err) {
+                console.log(colors.bgRed("\nError when zipping folder 'install-prereqs':"));
+                console.log(colors.red(err));
+                console.log("\n");
+                return res.status(500).send("Failed to create zip file.")
+            }
+        } 
+        
+        // some other error
+        else {
+            console.log(colors.bgRed("Error in checking zip file existence:"));
+            console.log(colors.red(err));
+            return res.status(500).send("Error in checking zip file existence")
+        }
+    });
+});
 
 
 
