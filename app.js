@@ -11,9 +11,6 @@ const coreServerAddress = process.env.coreServerAddress;
 const tmuxSessionName = process.env.tmuxSessionName;
 
 
-// app.options('*', cors());
-// app.use(cors());
-
 app.use(express.json());  // parse application/json
 app.use(express.json({type: 'application/vnd.api+json'}));  // parse application/vnd.api+json as json
 app.use(express.urlencoded({ extended: true }));  // parse application/x-www-form-urlencoded
@@ -61,12 +58,13 @@ app.post('/installPreReqs', async (req, res, err) =>
     
 
                 // download install-prereqs files, give permissions, create pwd.txt file and put password inside, and install-prereqs
-                stream.end(`sudo apt install unzip wget \n\
-                    sudo mkdir ${baasDir} \n\ sudo chmod 777 -R ${baasDir} \n cd ${baasDir} \n\
-                    wget ${coreServerAddress}/install-prereqs.zip -O install-prereqs.zip \n\
-                    unzip -o install-prereqs.zip \n\ cd install-prereqs \n\
-                    sudo chmod +x runWithTmux.sh \n sudo chmod +x install-prereqs.sh \n\
-                    echo ${password} > pwd.txt \n\
+                stream.end(`echo ${password} | sudo -S ls && history -c && \
+                    sudo apt install -y unzip wget && \
+                    sudo mkdir ${baasDir} && sudo chmod 777 -R ${baasDir} \n cd ${baasDir} \n\
+                    wget ${coreServerAddress}/install-prereqs.zip -O install-prereqs.zip && \
+                    unzip -o install-prereqs.zip && cd install-prereqs && \
+                    sudo chmod +x runWithTmux.sh && sudo chmod +x install-prereqs.sh && \
+                    echo ${password} > pwd.txt && history -c && \
                     ./runWithTmux.sh './install-prereqs.sh' '${tmuxSessionName}' \n\
                     exit\n`
                 );
@@ -104,7 +102,8 @@ app.post('/installPreReqs', async (req, res, err) =>
 
 app.post('/notifications', async (req, res, err) =>
 {
-    let serverIP, serverIPs = req.body.serverIPs.split(" ");
+    let serverIP, serverIPs;
+    if (req.body.serverIPs) serverIPs = req.body.serverIPs.split(" ");
     let installedPackage = req.body.installedPackage;
     let status = req.body.status;
     let networkServers;
