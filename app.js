@@ -121,7 +121,142 @@ app.post('/swarm', async (req, res) =>
     // input strucrure checking
     let validateInputs =  tools.inputValidationsForSwarm(leader, managers, workers, res);
 
-    if (validateInputs) return res.send();
+    // validate ssh info
+    if (validateInputs) 
+    {
+        // leader ssh info authentication 
+        if (leader) 
+        {
+            let leaderSshAuth = await tools.validateSshInfoForSwarm([leader], res);
+            if (!leaderSshAuth.isValid) {
+                return res.status(leaderSshAuth.status).send(leaderSshAuth.message);
+            }
+            else {
+                console.log(colors.green("* Leader ssh authentication done successfully."));
+                console.log("- " + colors.blue(leader.ip) + "\n-----------------------------------\n");
+            }
+        }
+
+        // managers ssh info authentication 
+        if (managers) {
+            let managersSshAuth = await tools.validateSshInfoForSwarm(managers, res);
+            if (!managersSshAuth.isValid) {
+                return res.status(managersSshAuth.status).send(managersSshAuth.message);
+            }
+            else {
+                console.log(colors.green("* Managers ssh authentication done successfully."));
+                managers.forEach(manager => {
+                    console.log("- " + colors.blue(manager.ip));
+                });
+                console.log("\n-----------------------------------\n");
+            }
+        }
+
+        // workers ssh info authentication 
+        if (workers) {
+            let workersSshAuth = await tools.validateSshInfoForSwarm(workers, res);
+            if (!workersSshAuth.isValid) {
+                return res.status(workersSshAuth.status).send(workersSshAuth.message);
+            }
+            else {
+                console.log(colors.green("* Workers ssh authentication done successfully."));
+                workers.forEach(worker => {
+                    console.log("- " + colors.blue(worker.ip));
+                });
+                console.log("\n-----------------------------------\n");
+            }
+        }
+
+    }
+
+
+    // ***********************************************************
+    //                      docker swarm
+    // ***********************************************************
+
+    // checkup swarming time NOT to take a long time
+    let swarmDoneFlag = false;
+    setTimeout(() => {
+        if (!swarmDoneFlag) {
+            console.log(colors.red("Swarm init is taking long time...\n"));
+            return res.status(500).send("Swarm init took long time to response. Try again.")
+        }
+    }, 10 * 1000);
+
+    // init docker swarm
+    let swarmInit = await tools.dockerSwarmInit(leader);
+    if (!swarmInit.hasAuthError && !swarmInit.hasOtherError) {
+        swarmDoneFlag = true;
+        console.log(colors.green(`- Docker swarm initialized in host: [${leader.ip}]`));
+        console.log(swarmInit.tokens);
+        console.log("\n");
+    }
+
+    // join managers to the swarm
+    if (managers)
+    {
+        let errHappened = false;
+        let errMessage;
+
+        await new Promise((resolve, reject) =>
+        {
+            managers.forEach(async (manager, index) =>
+            {
+                let swarmJoin = await tools.dockerSwarmJoin(manager, swarmInit.tokens.manager, "manager");
+                if (swarmJoin.status) {
+                    console.log(colors.green(`- Host [${manager.ip}] joined to the swarm as a manager.`));
+                }
+                else {
+                    errMessage = `Host [${manager.ip}] FAILED joined to the swarm as a manager.`;
+                    return errHappened = true;
+                }
+
+
+                // resolve the promise to continue the code, when all array iterations completed
+                if (index === managers.length-1) resolve();
+            });
+        });
+
+
+        if (errHappened) {
+            return res.status(400).send(errMessage);
+        }
+    }
+
+
+    // join workers to the swarm
+    if (workers)
+    {
+        let errHappened = false;
+        let errMessage;
+
+        await new Promise((resolve, reject) =>
+        {
+            workers.forEach(async (worker, index) =>
+            {
+                let swarmJoin = await tools.dockerSwarmJoin(worker, swarmInit.tokens.worker, "worker");
+                if (swarmJoin.status) {
+                    console.log(colors.green(`- Host [${worker.ip}] joined to the swarm as a worker.`));
+                }
+                else {
+                    errMessage = `Host [${worker.ip}] FAILED joined to the swarm as a worker.`;
+                    return errHappened = true;
+                }
+
+                // resolve the promise to continue the code, when all array iterations completed
+                if (index === workers.length-1) resolve();
+            });
+        });
+
+
+        if (errHappened) {
+            return res.status(400).send(errMessage);
+        }
+    }
+   
+    
+    // docker swarm done
+    return res.send("All hosts joined to the swarm successfully");
 });
 
 
@@ -170,6 +305,7 @@ app.post('/notifications', async (req, res, err) =>
 });
 
 
+// download install-prereqs.zip file
 app.get('/install-prereqs.zip', (req, res) => 
 {
     // check file/directory existence
